@@ -1,53 +1,60 @@
-import tkinter as tk
-from tkinter import messagebox
+import pygame
+import sys
 
-def start_game():
-    messagebox.showinfo("Start Game", "The campaign begins. Steel thy resolve.")
+# Initialize Pygame
+pygame.init()
 
-def open_options():
-    messagebox.showinfo("Options", "Here lie the lesser configurations.")
+# Screen settings
+WIDTH, HEIGHT = 640, 480
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Undercooked Two - This smell like poo")
 
-def quit_game():
-    root.destroy()
+# Colors
+WHITE = (240, 240, 240)
+BLACK = (20, 20, 20)
+GRAY = (100, 100, 100)
 
-# Create main window
-root = tk.Tk()
-root.title("Undercooked Two - This smell like poo")
-root.geometry("640x480")
-root.resizable(False, False)
+# Font
+font = pygame.font.SysFont("timesnewroman", 32)
 
-# Title label
-title = tk.Label(
-    root,
-    text="Undercooked Two - This smell like poo",
-    font=("Times New Roman", 14, "bold")
-)
-title.pack(pady=20)
+# Button helper
+def draw_button(text, x, y, w, h):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
 
-# Buttons
-start_button = tk.Button(
-    root,
-    text="Start Game",
-    width=20,
-    command=start_game
-)
-start_button.pack(pady=5)
+    rect = pygame.Rect(x, y, w, h)
+    pygame.draw.rect(screen, GRAY if rect.collidepoint(mouse) else WHITE, rect)
 
-options_button = tk.Button(
-    root,
-    text="Options",
-    width=20,
-    command=open_options
-)
-options_button.pack(pady=5)
+    label = font.render(text, True, BLACK)
+    label_rect = label.get_rect(center=rect.center)
+    screen.blit(label, label_rect)
 
-quit_button = tk.Button(
-    root,
-    text="Quit",
-    width=20,
-    command=quit_game
-)
-quit_button.pack(pady=20)
+    if rect.collidepoint(mouse) and click[0]:
+        pygame.time.delay(200)
+        return True
+    return False
 
-# Enter the eternal watch
-root.mainloop()
+# Main loop
+running = True
+while running:
+    screen.fill(BLACK)
+
+    title = font.render("Undercooked Two - This smell like poo", True, WHITE)
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, 50)))
+
+    if draw_button("Start Game", 120, 100, 160, 40):
+        print("The campaign begins.")
+
+    if draw_button("Options", 120, 150, 160, 40):
+        print("Options invoked.")
+
+    if draw_button("Quit", 120, 200, 160, 40):
+        pygame.quit()
+        sys.exit()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    pygame.display.flip()

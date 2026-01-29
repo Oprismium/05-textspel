@@ -7,8 +7,8 @@ from collections import deque
 # ======================================================
 # CONFIGURATION
 # ======================================================
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 FPS = 60
 
 FONT_SIZE = 18
@@ -20,6 +20,100 @@ TEXT_COLOR = (200, 200, 200)
 INPUT_COLOR = (180, 180, 255)
 
 ANIM_SPEED = 14  # animation speed for overlays
+
+# ======================================================
+# START MENU
+# ======================================================
+
+pygame.init()
+
+# Screen
+os.environ['SDL_VIDEO_CENTERED'] = '1'
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Undercooked Two - This smell like poo")
+
+# Colors
+WHITE = (240, 240, 240)
+BLACK = (20, 20, 20)
+GRAY = (120, 120, 120)
+
+# Font
+font = pygame.font.SysFont("timesnewroman", 32)
+
+# Menu state
+
+menu = "main"
+fullscreen = False
+
+def toggle_fullscreen():
+    global screen, fullscreen
+    fullscreen = not fullscreen
+
+    if fullscreen:
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
+    else:
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+# Button helper
+def draw_button(text, y, w=220, h=40):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+
+    rect = pygame.Rect(SCREEN_WIDTH//2 - w//2, y, w, h)
+    pygame.draw.rect(screen, GRAY if rect.collidepoint(mouse) else WHITE, rect)
+
+    label = font.render(text, True, BLACK)
+    screen.blit(label, label.get_rect(center=rect.center))
+
+    if rect.collidepoint(mouse) and click[0]:
+        pygame.time.delay(200)
+        return True
+    return False
+
+def main_menu():
+    global menu
+
+if draw_button("New Game", 120):
+    print("The campaign begins.")
+
+if draw_button("Load Game", 170):
+    print("Loading data...")
+
+if draw_button("Options", 220):
+    menu = "options"
+
+if draw_button("Quit", 270):
+    pygame.quit()
+    sys.exit()
+
+def options_menu():
+    global menu
+    title = font.render("Options", True, WHITE)
+    screen.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 50)))
+
+    fs_text = "Fullscreen: ON" if fullscreen else "Fullscreen: OFF"
+    if draw_button(fs_text, 150):
+        toggle_fullscreen()
+
+    if draw_button("Back", 260):
+        menu = "main"
+
+# Main loop
+running = True
+while running:
+    screen.fill(BLACK)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    if menu == "main":
+        main_menu()
+    elif menu == "options":
+        options_menu()
+
+    pygame.display.flip()
 
 # ======================================================
 # TEXT UTILITIES

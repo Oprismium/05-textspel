@@ -1,0 +1,16 @@
+{
+  "inventory": [
+    "Torch",
+    "Old Key"
+  ],
+  "quests": [
+    {
+      "text": "Placeholder mission 1.",
+      "state": "Active"
+    },
+    {
+      "text": "Placeholder mission 2.",
+      "state": "Active"
+    }
+  ]
+}

@@ -1,15 +1,12 @@
 {
+  "max_hp": 100,
+  "hp": 80,
   "inventory": [
-    "Torch",
-    "Old Key"
+    "Torch"
   ],
   "quests": [
     {
-      "text": "Placeholder mission 1.",
-      "state": "Active"
-    },
-    {
-      "text": "Placeholder mission 2.",
+      "text": "Placeholder objective.",
       "state": "Active"
     }
   ]

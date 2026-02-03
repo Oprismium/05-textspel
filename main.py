@@ -75,6 +75,47 @@ def cycle_resolution():
 # ======================================================
 # HELPERS
 # ======================================================
+
+class MenuButtons:
+    def __init__(self, labels, start_pos, size=(300, 50), gap=20):
+        self.labels = labels
+        self.selected = 0
+        self.rects = []
+        self.start_x, self.start_y = start_pos
+        self.w, self.h = size
+        self.gap = gap
+        self.rebuild()
+
+    def rebuild(self):
+        self.rects = []
+        y = self.start_y
+        for lbl in self.labels:
+            r = pygame.Rect(self.start_x, y, self.w, self.h)
+            self.rects.append((lbl, r))
+            y += self.h + self.gap
+
+    def handle_keyboard(self, event):
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.selected = (self.selected - 1) % len(self.labels)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.selected = (self.selected + 1) % len(self.labels)
+        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+            return self.labels[self.selected]
+        return None
+
+    def handle_mouse(self, event):
+        for lbl, r in self.rects:
+            if button_clicked(r, event):
+                return lbl
+        return None
+
+    def draw(self):
+        mouse = screen_to_virtual(pygame.mouse.get_pos())
+        for i, (lbl, r) in enumerate(self.rects):
+            hovered = r.collidepoint(mouse)
+            draw_button(ui_surface, lbl, r, selected=(i == self.selected or hovered))
+
+
 def screen_to_virtual(pos):
     sx, sy = pos
     return int(sx * VIRTUAL_RES[0] / SCREEN_WIDTH), int(sy * VIRTUAL_RES[1] / SCREEN_HEIGHT)
@@ -335,40 +376,101 @@ class OptionsMenu:
 
 class PauseMenu:
     def __init__(self):
-        self.options = ["Resume", "Save Game", "Quit to Menu"]
-        self.selected = 0
+        self.active = False
         self.anim = 0
+        self.buttons = MenuButtons(
+            ["Resume", "Save Game", "Quit to Menu"],
+            (VIRTUAL_RES[0]//2 - 150, VIRTUAL_RES[1]//2 - 80),
+            size=(300, 45),
+            gap=20
+        )
         self.rects = []
 
-    def update(self, active, dt):
-        # Smooth in/out animation
-        self.anim = smooth(self.anim, 1 if active else 0, ANIM_SPEED, dt)
+    def update(self, dt):
+        target = 1 if self.active else 0
+        self.anim = smooth(self.anim, target, ANIM_SPEED, dt)
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            return self.buttons.handle_keyboard(event)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            return self.buttons.handle_mouse(event)
+        return None
 
     def draw(self):
         if self.anim < 0.01:
             return
+
         overlay = pygame.Surface(VIRTUAL_RES)
         overlay.set_alpha(int(180 * self.anim))
         overlay.fill((0, 0, 0))
         ui_surface.blit(overlay, (0, 0))
 
-        panel = pygame.Rect(
-            VIRTUAL_RES[0]//2 - 200,
-            VIRTUAL_RES[1]//2 - 150 + int(40 * (1 - self.anim)),
-            400, 250
+        self.buttons.draw()
+
+
+
+class Editor:
+    def __init__(self):
+        self.active = True
+        self.buttons = {}
+        self.labels = ["Quit to Menu", "New Story", "Save Story", "Load Story"]
+        self.selected = 0  # for keyboard navigation
+        self._build_buttons()
+
+    def _build_buttons(self):
+        x, y = 20, 20
+        w, h = 220, 40
+        gap = 10
+
+        self.buttons = {}
+        for text in self.labels:
+            self.buttons[text] = pygame.Rect(x, y, w, h)
+            y += h + gap
+
+    def handle_event(self, event, terminal, set_mode_fn):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_w, pygame.K_UP):
+                self.selected = (self.selected - 1) % len(self.labels)
+            elif event.key in (pygame.K_s, pygame.K_DOWN):
+                self.selected = (self.selected + 1) % len(self.labels)
+            elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.activate_button(self.labels[self.selected], terminal, set_mode_fn)
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            for text, rect in self.buttons.items():
+                if button_clicked(rect, event):
+                    self.activate_button(text, terminal, set_mode_fn)
+
+    def activate_button(self, label, terminal, set_mode_fn):
+        if label == "Quit to Menu":
+            set_mode_fn("main_menu")
+        else:
+            terminal.add(f">> {label} placeholder.")
+
+    def draw_workspace(self):
+        if not self.active:
+            return
+
+        # Draw buttons, highlight if selected or hovered
+        mouse_pos = pygame.mouse.get_pos()
+        for i, text in enumerate(self.labels):
+            rect = self.buttons[text]
+            virtual_mouse = screen_to_virtual(mouse_pos)
+            hovered = rect.collidepoint(virtual_mouse)
+            draw_button(ui_surface, text, rect, selected=(i == self.selected or hovered))
+
+        # Draw workspace title
+        title = font_ui.render("Narrative Editor", True, WHITE)
+        ui_surface.blit(title, (300, 120))
+
+        hint = font_term.render(
+            "Story workspace active. Creation systems pending.",
+            True,
+            TEXT_COLOR
         )
-        pygame.draw.rect(ui_surface, DARK, panel)
-        pygame.draw.rect(ui_surface, WHITE, panel, 2)
+        ui_surface.blit(hint, (300, 180))
 
-        self.rects = []
-        for i, opt in enumerate(self.options):
-            r = pygame.Rect(panel.x + 50, panel.y + 40 + i*60, 300, 45)
-            draw_button(ui_surface, opt, r, i == self.selected)
-            self.rects.append((opt, r))
-
-            r = pygame.Rect(panel.x + 50, panel.y + 40 + i*60, 300, 45)
-            draw_button(ui_surface, opt, r, i == self.selected)
-            self.rects.append((opt, r))
 
 class GameOverMenu:
     def __init__(self):
@@ -404,13 +506,13 @@ def handle_game_over_choice(choice, state, terminal, transition):
 # ======================================================
 def main():
     global mode
+    editor = Editor()
     terminal = Terminal()
     state = GameState()
     inventory = InventoryPanel(state)
     actions = ActionButtons(terminal)
     transition = Transition()
     pause_menu = PauseMenu()
-    paused = False
     main_menu = MainMenu()
     options_menu = OptionsMenu()
     game_over_menu = GameOverMenu()
@@ -492,37 +594,9 @@ def main():
                         elif text == "Quit":
                             running = False
 
-            # --- NARRATIVE EDITOR ---
             elif mode == "editor":
-                title = font_ui.render("Narrative Editor", True, WHITE)
-                ui_surface.blit(
-                    title,
-                    title.get_rect(center=(VIRTUAL_RES[0] // 2, 120))
-                )
+                editor.handle_event(event, terminal, set_mode)
 
-                subtitle = font_term.render(
-                    "Forge the story. Bind events. Shape fate.",
-                    True,
-                    TEXT_COLOR
-                )
-                
-                ui_surface.blit(
-                    subtitle,
-                    subtitle.get_rect(center=(VIRTUAL_RES[0] // 2, 180))
-                )
-
-                hint = font_term.render(
-                    "[ Editor framework awaiting implementation ]",
-                    True,
-                    GRAY
-                )
-                ui_surface.blit(
-                    hint,
-                    hint.get_rect(center=(VIRTUAL_RES[0] // 2, 240))
-                )
-           
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    transition.start(lambda: set_mode("main_menu"))
 
 
             # --- OPTIONS MENU ---
@@ -541,60 +615,27 @@ def main():
                     if event.key == pygame.K_TAB:
                         inventory.toggle()
                     elif event.key == pygame.K_ESCAPE:
-                        paused = not paused
+                        pause_menu.active = not pause_menu.active
 
-                # Block gameplay input while paused
-                if paused:
-                    # Keyboard navigation
-                    if event.type == pygame.KEYDOWN:
-                        if event.key in (pygame.K_w, pygame.K_UP):
-                            pause_menu.selected = (pause_menu.selected - 1) % len(pause_menu.options)
-                        elif event.key in (pygame.K_s, pygame.K_DOWN):
-                            pause_menu.selected = (pause_menu.selected + 1) % len(pause_menu.options)
-                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                            handle_pause_choice(
-                                pause_menu.options[pause_menu.selected],
-                                state,
-                                terminal,
-                                transition
-                            )
+                if pause_menu.active:
+                    choice = pause_menu.handle_event(event)
+                    if choice:
+                        handle_pause_choice(choice, state, terminal, transition)
+                elif not inventory.visible:
+                    actions.handle_event(event)
+
 
                 if actions.last_action == "Fight":
                     actions.last_action = None  # consume action
-                    if state.damage(10):
+                    if state.damage(0):
                         terminal.add(">> SYSTEM FAILURE: Vital signs terminated.")
                         terminal.add("Load last saved game?")
                         mode = "game_over"
 
 
 
-                    # Mouse clicks
-                    for text, r in pause_menu.rects:
-                        if button_clicked(r, event):
-                            handle_pause_choice(text, state, terminal, transition)
 
-                # Block gameplay input while paused
-                if paused:
-                    # Keyboard navigation
-                    if event.type == pygame.KEYDOWN:
-                        if event.key in (pygame.K_w, pygame.K_UP):
-                            pause_menu.selected = (pause_menu.selected - 1) % len(pause_menu.options)
-                        elif event.key in (pygame.K_s, pygame.K_DOWN):
-                            pause_menu.selected = (pause_menu.selected + 1) % len(pause_menu.options)
-                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                            handle_pause_choice(
-                                pause_menu.options[pause_menu.selected],
-                                state,
-                                terminal,
-                                transition
-                            )
-
-                    # Mouse clicks
-                    for text, r in pause_menu.rects:
-                        if button_clicked(r, event):
-                            handle_pause_choice(text, state, terminal, transition)
-
-                # Gameplay input ONLY when not paused
+                # Gameplay input ONLY when not pause_menu.active
                 elif not inventory.visible:
                     actions.handle_event(event)
 
@@ -605,9 +646,7 @@ def main():
                         game_over_menu.selected = (game_over_menu.selected - 1) % len(game_over_menu.options)
                     elif event.key in (pygame.K_s, pygame.K_DOWN):
                         game_over_menu.selected = (game_over_menu.selected + 1) % len(game_over_menu.options)
-                    elif choice == "Editor" and mode != "editor":
-                        transition.start(lambda: set_mode("editor"))
-
+    
                         handle_game_over_choice(choice, state, terminal, transition)
 
                 for text, r in game_over_menu.rects:
@@ -627,9 +666,10 @@ def main():
             terminal.draw()
             actions.draw()
             inventory.draw()
-            pause_menu.update(paused, dt)
+            pause_menu.update(dt)
             pause_menu.draw()
-
+        elif mode == "editor":
+            editor.draw_workspace()
         elif mode == "game_over":
             terminal.draw()
             game_over_menu.draw()
@@ -645,15 +685,16 @@ def main():
     sys.exit()
 
 def handle_pause_choice(choice, state, terminal, transition):
-    global paused, mode
+    global mode
     if choice == "Resume":
-        paused = False
+        # handled by pause_menu.active toggle
+        pass
     elif choice == "Save Game":
         state.save()
         terminal.add("[Game saved]")
     elif choice == "Quit to Menu":
-        if mode != "main_menu":
-            transition.start(lambda: set_mode("main_menu"))
+        transition.start(lambda: set_mode("main_menu"))
+
 
 
 
@@ -666,3 +707,4 @@ def set_mode(m):
 
 if __name__ == "__main__":
     main()
+
